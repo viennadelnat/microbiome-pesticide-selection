@@ -1,7 +1,9 @@
 # Microbiome-Pesticide-Selection-Experiment
 
 R and command line code for ‘Evolution of pesticide tolerance and associated changes in the microbiome in Daphnia magna’
+
 Lizanne Janssens , Marlies Van de Maele, Vienna Delnat, Charlotte Theys, Shinjini Mukherjee, Luc De Meester and Robby Stoks (Year). 
+
 Journal. 
 
 ## R code 
