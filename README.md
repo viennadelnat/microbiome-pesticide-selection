@@ -6,7 +6,7 @@ Lizanne Janssens , Marlies Van de Maele, Vienna Delnat, Charlotte Theys, Shinjin
 
 ## R code 
 * Installing and loading packages
-* Read data files as physeq
+* Read data files as phyloseq object (physeq)
 * Decontamination
 * Cleaning and Filtering
 * Rarefying samples
@@ -14,6 +14,7 @@ Lizanne Janssens , Marlies Van de Maele, Vienna Delnat, Charlotte Theys, Shinjin
 * BETA diversity - NMDS ORDINATION - Bray Curtis
 * BETA diversity - NMDS ORDINATION - Weighted Unifrac
 * ALPHA diversity - Shannon index and Faith's phylogenetic index
+* Combining plots of Alpha and Beta diversity in a single figure
 
 ## Command line 
 * Miniconda & QIIME2 environment
@@ -22,5 +23,3 @@ Lizanne Janssens , Marlies Van de Maele, Vienna Delnat, Charlotte Theys, Shinjin
 * Summarizing Feature Table and Feature Data
 * Taxonomy assignment
 * Generating a phylogenetic tree
-
-
