@@ -1,9 +1,8 @@
 #Evolution of pesticide tolerance and associated changes in the microbiome in Daphnia magna
 #Lizanne Janssens, Marlies Van de Maele, Vienna Delnat, Charlotte Theys, Shinjini Mukherjee, Luc De Meester, Robby Stoks
 #Journal (Year)
-#R code tested on 15/12/2021
+#R code tested on 21/02/2022
 
-#Still being updated!
 
 ####### Install packages ####### 
 
@@ -22,7 +21,8 @@ library(devtools)
 devtools::install_github("jbisanz/qiime2R")   
 
 ## Installer Code for Packages Below If You Don't Have Them 
-install.packages(c("vegan","microbiome","RColorBrewer","tidyverse","ggplot2","gplots","cowplot","devtools","labdsv","ggfittext","dplyr","stats","ggpubr"))
+install.packages(c("vegan","microbiome","RColorBrewer","ggplot2","gplots","cowplot"))
+install.packages(c("labdsv","tidyverse","ggfittext","dplyr","stats","ggpubr"))
 install.packages(c("lme4","car","effects","emmeans","MuMIn","lmerTest","lattice","afex","DCA","picante"))
 
 
@@ -63,16 +63,18 @@ sessionInfo()
 
 #Session --> Set Working Directory --> To Source File Location
 
-### Build Phyloseq Object 
-physeq<-qza_to_phyloseq(features="table_16S_trim14trunc240.qza",taxonomy="taxonomy_16S_trim14trunc240.qza", metadata="sample-metadata-R.txt",tree="rooted-tree_16S_trim14trunc240.qza")
+## Build Phyloseq Object 
+physeq<-qza_to_phyloseq(features="table_16S_trim14trunc240.qza",taxonomy="taxonomy_16S_trim14trunc240.qza", 
+                        metadata="sample-metadata-R.txt",tree="rooted-tree_16S_trim14trunc240.qza")
 physeq
 
-##access each of the different elements of the phyloseq object
+## Access each of the different elements of the phyloseq object
 #Sample Data 
 head(sample_data(physeq))
 colnames(sample_data(physeq))
 #Taxonomy
-head(tax_table(physeq)) 
+head(tax_table(physeq))
+rank_names(physeq)
 #ASV Matrix
 head(otu_table(physeq))
 
@@ -80,7 +82,8 @@ head(otu_table(physeq))
 ####### Decontamination ####### 
 
 #https://benjjneb.github.io/decontam/vignettes/decontam_intro.html
-#Prevalence (absence/presence) used as method (not Frequency, no DNA concentration per sample available)
+#Prevalence (absence/presence) used as method 
+#(not Frequency, no DNA concentration per sample available)
 contamdf.prev <- isContaminant(physeq, method="prevalence", neg="neg")
 table(contamdf.prev$contaminant)
 which(contamdf.prev$contaminant)
@@ -109,8 +112,11 @@ rank_names(physeqDC)
 #Replace "uncultured*", "metagenome", "microbial*" and "unidentified*" as NA values in Species
 NAlistSpecies= c("uncultured*", "metagenome", "microbial*", "unidentified*")
 for (pattern in NAlistSpecies) {tax_table(physeqDC)[, "Species"] <- gsub(tax_table(physeqDC)[, "Species"], pattern = pattern, replacement =  NA)}
-#Percentage of NA in Species 
-apply(tax_table(physeqDC)[,7],2,function(x){round(mean(is.na(x))*100, digits=2)})
+
+#Percentage of NA in Species - 87.42%
+Species = tax_table(physeqDC)[,7]
+apply(Species,MARGIN=2,function(x){round(mean(is.na(x))*100, digits=2)})
+
 #Note, majority (87.42%) is NA in Species --> remove this rank
 tax_table(physeqDC) <- tax_table(physeqDC)[,2:6]
 #Note, NA in Phylum (no "uncharacterized", "uncultured", "unidentified") --> Remove these ASVs (2)
@@ -119,36 +125,51 @@ physeqFilter1
 #Control if there are indeed 0% NA values for the Phylum taxonomy rank, ok.
 apply(tax_table(physeqFilter1)[,1],2,function(x){round(mean(is.na(x))*100, digits=2)}) 
 
-#Note, environmental ("Lineage_IV"), plant (C), hypersaline ("vadinHA49"), soil ("WD2101_soil_group", "WPS-2", "Blfdi19") or 
-#marine (CL500-29_marine_group", "NS11-12_marine_group", "NS9_marine_group", "SAR324_clade(Marine_group_B)", "PeM15", "mle1-27", "Pla3_lineage", "Yoonia-Loktanella", "SM2D12", "OM60(NOR5)_clade"), 
+#Note, environmental ("Lineage_IV"), plant (C), hypersaline ("vadinHA49"), 
+#soil ("WD2101_soil_group", "WPS-2", "Blfdi19") or marine (CL500-29_marine_group", 
+#"NS11-12_marine_group", "NS9_marine_group", "SAR324_clade(Marine_group_B)", 
+#"PeM15", "mle1-27", "Pla3_lineage", "Yoonia-Loktanella", "SM2D12", "OM60(NOR5)_clade"), 
 #"Chloroplast" and "Mitochondria" ASVs in Genus --> Remove these ASVs (96)
-physeqFilter2 <- subset_taxa(physeqFilter1, !Genus %in% c("Mitochondria", "Chloroplast", "Lineage_IV", "LWQ8", "vadinHA49", "WD2101_soil_group", "WPS-2", 
-                                                          "Blfdi19", "CL500-29_marine_group", "NS11-12_marine_group", "NS9_marine_group", "SAR324_clade(Marine_group_B)",
-                                                          "PeM15","mle1-27", "Pla3_lineage", "Yoonia-Loktanella", "SM2D12", "OM60(NOR5)_clade", "SM1A07", "[Eubacterium]_brachy_group"))
+physeqFilter2 <- subset_taxa(physeqFilter1, 
+                             !Genus %in% c("Mitochondria", "Chloroplast", "Lineage_IV", "LWQ8", "vadinHA49", 
+                                           "WD2101_soil_group", "WPS-2", "Blfdi19", "CL500-29_marine_group", 
+                                           "NS11-12_marine_group", "NS9_marine_group", 
+                                           "SAR324_clade(Marine_group_B)", "PeM15","mle1-27", "Pla3_lineage", 
+                                           "Yoonia-Loktanella", "SM2D12", "OM60(NOR5)_clade", "SM1A07", 
+                                           "[Eubacterium]_brachy_group"))
 physeqFilter2
 
-#Note, "uncultured" in Genus, Family and Order; also "Unknown_Family" in Family; NA values --> Replace these with nothing but keep ASVs!
+#Note, "uncultured" in Genus, Family and Order; also "Unknown_Family" in Family; 
+#NA values --> Replace these with nothing but keep ASVs!
 NAlistTax=c("uncultured","Unknown_Family")
-for (pattern in NAlistTax){tax_table(physeqFilter2)[, colnames(tax_table(physeqFilter2))] <- gsub(tax_table(physeqFilter2)[, colnames(tax_table(physeqFilter2))], pattern = pattern, replacement = " Unidentified")}
-tax_table(physeqFilter2)[, colnames(tax_table(physeqFilter2))] <- replace(tax_table(physeqFilter2)[, colnames(tax_table(physeqFilter2))], is.na(tax_table(physeqFilter2)[, colnames(tax_table(physeqFilter2))]), " Unidentified")
+for (pattern in NAlistTax){  tax_table(physeqFilter2) <- gsub(tax_table(physeqFilter2), pattern = pattern, replacement = " Unidentified")}
+tax_table(physeqFilter2) <- replace(tax_table(physeqFilter2), is.na(tax_table(physeqFilter2)), " Unidentified")
 
 #Note, wrong identification of Phylum, Class, Order, Family, Genus --> Replace these with correct identification or with nothing but keep ASVs!
 WrongID=c("OM190","Candidatus_Campbellbacteria")
-for (pattern in WrongID){tax_table(physeqFilter2)[, colnames(tax_table(physeqFilter2))] <- gsub(tax_table(physeqFilter2)[, colnames(tax_table(physeqFilter2))], pattern = pattern, replacement = " Unidentified")}
+for (pattern in WrongID){tax_table(physeqFilter2)[, colnames(tax_table(physeqFilter2))] <- 
+  gsub(tax_table(physeqFilter2)[, colnames(tax_table(physeqFilter2))], pattern = pattern, replacement = " Unidentified")}
 WrongIDclass=c("Gracilibacteria","Parcubacteria")
-for (pattern in WrongIDclass){tax_table(physeqFilter2)[, "Class"] <- gsub(tax_table(physeqFilter2)[, "Class"], pattern = pattern, replacement =  " Unidentified")}
+for (pattern in WrongIDclass){tax_table(physeqFilter2)[, "Class"] <- 
+  gsub(tax_table(physeqFilter2)[, "Class"], pattern = pattern, replacement =  " Unidentified")}
 WrongIDorder=c("Gammaproteobacteria_Incertae_Sedis","Candidatus_Kaiserbacteria","Gracilibacteria")
-for (pattern in WrongIDorder){tax_table(physeqFilter2)[, "Order"] <- gsub(tax_table(physeqFilter2)[, "Order"], pattern = pattern, replacement =  " Unidentified")}
-WrongIDfamily=c("Rhizobiales_Incertae_Sedis","CHAB-XI-27","Candidatus_Kaiserbacteria","Candidatus_Hepatincola","Caenarcaniphilales","Babeliales","Bradymonadales","Gracilibacteria","Saccharimonadales","Kapabacteriales")
-for (pattern in WrongIDfamily){tax_table(physeqFilter2)[, "Family"] <- gsub(tax_table(physeqFilter2)[, "Family"], pattern = pattern, replacement =  " Unidentified")}
+for (pattern in WrongIDorder){tax_table(physeqFilter2)[, "Order"] <- 
+  gsub(tax_table(physeqFilter2)[, "Order"], pattern = pattern, replacement =  " Unidentified")}
+WrongIDfamily=c("Rhizobiales_Incertae_Sedis","CHAB-XI-27","Candidatus_Kaiserbacteria","Candidatus_Hepatincola",
+                "Caenarcaniphilales","Babeliales","Bradymonadales","Gracilibacteria","Saccharimonadales","Kapabacteriales")
+for (pattern in WrongIDfamily){tax_table(physeqFilter2)[, "Family"] <- 
+  gsub(tax_table(physeqFilter2)[, "Family"], pattern = pattern, replacement =  " Unidentified")}
 tax_table(physeqFilter2)[, "Family"] <- gsub(tax_table(physeqFilter2)[, "Family"], pattern = "Oligoflexales", replacement = "Oligoflexaceae")
-WrongIDgenus=c("CHAB-XI-27","env.OPS_17","T34","LiUU-11-161","UBA12409","Candidatus_Kaiserbacteria","Fimbriimonadaceae","Caenarcaniphilales","Bradymonadales","Babeliales","Gracilibacteria")
-for (pattern in WrongIDgenus){tax_table(physeqFilter2)[, "Genus"] <- gsub(tax_table(physeqFilter2)[, "Genus"], pattern = pattern, replacement =  " Unidentified")}
+WrongIDgenus=c("CHAB-XI-27","env.OPS_17","T34","LiUU-11-161","UBA12409",
+               "Candidatus_Kaiserbacteria","Fimbriimonadaceae","Caenarcaniphilales","Bradymonadales","Babeliales","Gracilibacteria")
+for (pattern in WrongIDgenus){tax_table(physeqFilter2)[, "Genus"] <- 
+  gsub(tax_table(physeqFilter2)[, "Genus"], pattern = pattern, replacement =  " Unidentified")}
 
 tax_table(physeqFilter2)["7f1bbb09801e6a094bbb6c84089da68d", "Phylum"] <- "Candidatus_Kaiserbacteria"
 ASVphylumList1=c("4e65fbe7d947b881fded12ad64b0c635","28f94f62f88243cf4d36cc83cae8faba", "1fc70f2151946d9a45f322a8460b714f")
 for (ASVID in ASVphylumList1){tax_table(physeqFilter2)[ASVID, "Phylum"] <- "Gracilibacteria"}
-ASVphylumList2=c("43dfe1403dac33f9f4593da1c049c99a","ad2ca69176d72f3c2260e69716ebd56f","b03c2c6c84a848ac5353fdaaf7d0ddb3","6bddd141313fcc6078021b6ae597dc75","9a51bdd7e2ba389627e8dfcce957c19e")
+ASVphylumList2=c("43dfe1403dac33f9f4593da1c049c99a","ad2ca69176d72f3c2260e69716ebd56f","b03c2c6c84a848ac5353fdaaf7d0ddb3",
+                 "6bddd141313fcc6078021b6ae597dc75","9a51bdd7e2ba389627e8dfcce957c19e")
 for (ASVID in ASVphylumList2){tax_table(physeqFilter2)[ASVID, "Phylum"] <- "Candidatus_Campbellbacteria"}
 tax_table(physeqFilter2)["b24bfa72082faec74ac8e287999dd182", "Class"] <- "Acidobacteriia"
 tax_table(physeqFilter2)["3d38eef3781d48683af3630ab65a59e4", "Order"] <- "Burkholderiales"
@@ -163,7 +184,8 @@ tax_table(physeqFilter2)["b24bfa72082faec74ac8e287999dd182", "Family"] <- "Bryob
 ASVfamilyList=c("51ee97e240502848b7600fd8591d8e39","a16df1617fab6017e525a43ecda75a8f","b24c3a2da3860563348c3fc81cc6923b")
 for (ASVID in ASVfamilyList){tax_table(physeqFilter2)[ASVID, "Family"] <- "Coxiellaceae"}
 tax_table(physeqFilter2)["c5334bf4b6b64c392ece945829263344", "Genus"] <- "Calothrix"
-ASVgenusList=c("c8d089ea661e8ab776cba132a6b87e00","c9f6c592e5502fcedc04b66177037a1a","bba7f32e41c94f194d68db95f8c43678","9e811b9aa382441089f80386b979b00a","cf21388f722c158f4cfaa678bbe4e8b0","b8d49972a6fd2521bc75e97e158850b3","d295e67d72c220013425157091a56b42")
+ASVgenusList=c("c8d089ea661e8ab776cba132a6b87e00","c9f6c592e5502fcedc04b66177037a1a","bba7f32e41c94f194d68db95f8c43678",
+               "9e811b9aa382441089f80386b979b00a","cf21388f722c158f4cfaa678bbe4e8b0","b8d49972a6fd2521bc75e97e158850b3","d295e67d72c220013425157091a56b42")
 for (ASVID in ASVgenusList){tax_table(physeqFilter2)[ASVID, "Genus"] <- " Unidentified"}
 
 #Remove singletons (ASVs with only one read) as they are more likely sequencing errors (49)
@@ -176,10 +198,14 @@ physeqFilteredDF=as.data.frame(tax_table(physeqFiltered))
 
 ####### Rarefying samples ####### 
 
+#Save rarefaction curve in svg file (Appendix B - Figure B.1)
+svg(filename = "FigureB1_AppendixB.svg", width = 15, height = 8)
 #Plot rarefaction curve (species discovery curve) in vegan to see if plateau is reached for each sample
 rarecurve(t(otu_table(physeqFiltered)), step=50, cex=0.5)
-abline(v=13797, col="blue", lty=2)
 #Note, abline was added after cut-off threshold was determined below.
+abline(v=13797, col="blue", lty=2)
+#Stop saving code in svg file
+dev.off()
 
 #Determine what the minimum coverage is 
 min(sample_sums(physeqFiltered))
@@ -199,25 +225,11 @@ physeqFilteredRFdf=as.data.frame(tax_table(physeqFilteredRF))
 ASVfilteredRF=otu_table(physeqFilteredRF)
 # write.table(ASVfilteredRF, "ASVfilteredRF.txt", sep="\t")
 
-####### Pesticide degrading genera - subset #######
-
-#Absolute count --> relative count (%); relative abundance (ra)
-#This is needed to make a fair assessment between sample types:
-#In the microbiome samples of Daphnia originating from the control aquaria 88.5% of the gut ASVs could not be identified 
-#at the genus level, #while this was only 38.2% for the whole body ASVs (p = 0.0022).  
-physeqFilteredRF_ra <- transform_sample_counts(physeqFilteredRF, function(x){round((x/sum(x))*100,digits=4)})
-
-DegradingGeneraList = c("Acinetobacter", "Azospirillum", "Bacillus", "Brevundimonas", "Caulobacter", "Chryseobacterium", "Corynebacterium", "Enterobacter",
-                        "Exiguobacterium", "Flavobacterium", "Lactobacillus", "Mcyobacterium", "Paracoccus", "Pseudomonas", "Rhodococcus", "Allorhizobium-Neorhizobium-Pararhizobium-Rhizobium",
-                        "Sphingomonas", "Staphylococcus", "Stenotrophomonas", "Vibrio")
-
-physeqOrganophosphateDegradingGenera <- subset_taxa(physeqFilteredRF_ra, Genus %in% DegradingGeneraList)
-otu_table(physeqOrganophosphateDegradingGenera)
-
 
 ####### Abundance bar plot - Genus #######
 
-#Merge samples per sampletype-treatment combination (to plot relative abundances per sampletype-treatment instead of per sample)
+#Merge samples per sampletype-treatment combination 
+#(to plot relative abundances per sampletype-treatment instead of per sample)
 physeq_merged = merge_samples(physeqFilteredRF, "sampletypetreatment", fun = sum)
 
 #Merges ASVs that have the same taxonomy at the Genus taxanomic rank (keeping the NA values)
@@ -227,7 +239,9 @@ physeq_mergedUnique <- tax_glom(physeq_merged, "Genus", NArm=FALSE)
 physeq_ra <- transform_sample_counts(physeq_mergedUnique, function(x){round(x/sum(x),digits=4)})
 
 #Shorten the name of "Allorhizobium-Neorhizobium-Pararhizobium-Rhizobium" to fit in the legend
-tax_table(physeq_ra)[, "Genus"] <- gsub(tax_table(physeq_ra)[, "Genus"], pattern = "Allorhizobium-Neorhizobium-Pararhizobium-Rhizobium", replacement =  "(Allo-Neo-Para)-Rhizobium")
+tax_table(physeq_ra)[, "Genus"] <- gsub(tax_table(physeq_ra)[, "Genus"], 
+                                        pattern = "Allorhizobium-Neorhizobium-Pararhizobium-Rhizobium", 
+                                        replacement =  "(Allo-Neo-Para)-Rhizobium")
 
 #Merge unidentified genera for the abundance plot
 physeq_ra_unidentified <- subset_taxa(physeq_ra, Genus %in% c(" Unidentified"))
@@ -247,7 +261,7 @@ physeq_ra_merged2 <- tax_glom(physeq_ra_merged1, "Genus", NArm=FALSE)
 table(tax_table(physeq_ra_merged2)[,5])
 
 #Export the stacked bar plot below to an svg file
-svg(filename = "Figure3.svg", width = 16, height = 16)
+svg(filename = "Figure3_Manuscript.svg", width = 16, height = 16)
 #Make a stacked bar plot using the date from pgut_ra_pruned_rel whereby the colors are different genera
 plot_bar(physeq_ra_merged2, fill = "Genus") +
   #Add labels with the genus within the bar plot per color and make sure the text fits the height of the stack.
@@ -257,9 +271,11 @@ plot_bar(physeq_ra_merged2, fill = "Genus") +
   #Set y-label to 'Relative abundance'
   ylab("Relative abundance") +
   #Change the x-axis ticks labels 
-  scale_x_discrete(labels= c("gut-control"="Control\nGut","gut-pesticide"="Chlorpyrifos-selected\nGut","whole-control"="Control\nWhole body","whole-pesticide"="Chlorpyrifos-selected\nWhole body")) +
+  scale_x_discrete(labels= c("gut-control"="Control\nGut","gut-pesticide"="Chlorpyrifos-selected\nGut",
+                             "whole-control"="Control\nWhole body","whole-pesticide"="Chlorpyrifos-selected\nWhole body")) +
   #Transform the proportions to percentages on the y-axis and 
-  #remove padding around the data that would ensure that the data were placed some distance away from the axes (no white space between bar and x-axis)
+  #remove padding around the data that would ensure that 
+  #the data were placed some distance away from the axes (no white space between bar and x-axis)
   scale_y_continuous(labels = scales::percent, expand=c(0,0.0), limits=c(0,1)) + 
   #Set the classic theme (no gray panel background and no major/minor grids)
   theme_classic() +
@@ -287,7 +303,8 @@ plot_bar(physeq_ra_merged2, fill = "Genus") +
     axis.line.y.right = element_blank(),
     #Set plot margins
     plot.margin = unit(c(0.5,0.5,0.5,0.5), "cm")) +
-  #Manual annotation of text within the stacked bar that is not shown by geom_fit_text as the height of the stack is not high enough
+  #Manual annotation of text within the stacked bar that is not shown by geom_fit_text 
+  #as the height of the stack is not high enough
   annotate(geom="text", x=1, y=0.0708, label="Flavobacterium", color="black", size=2) +
   annotate(geom="text", x=2, y=0.140, label="Flavobacterium", color="black", size=3) 
 #Stop saving code in svg file
@@ -300,10 +317,8 @@ dev.off()
 #Rather, we ordinate samples in n-dimensional space, corresponding to the number of axes we choose to ordinate to, and then overlay our sample metadata on top to look for patterns.
 #PERMANOVA using Vegan package: PERMANOVA is a randomisation procedure that will test for the effects of predictors of interest in driving differences in beta diversity/community structure.
 
-#Run line below to run Beta diversity analysis with all ASV (do not run line 295)
+#Run line below to run Beta diversity analysis with all ASV
 physeq = physeqFilteredRF
-#Run line below to run Beta diversity analysis with ASV of known organophosphate degrading bacteria (do not run line 293)
-physeq = physeqOrganophosphateDegradingGenera 
 
 #Convert Phyloseq so that Vegan can use it
 vegan_otu <- function(physeq) {
@@ -325,23 +340,26 @@ adonisBray
 #Homogeneity assumption
 dist<-vegdist(abund_vegan, method="bray")
 physeq.disper <- betadisper(dist, sample_vegan$treatment)
-permutest(physeq.disper, pairwise = TRUE) #P = 0.167 (line 293); P = 0.531 (line 295) --> ok; assumption for adonis is met for treatment (homogeneous dispersion)
+permutest(physeq.disper, pairwise = TRUE) 
+#P = 0.167 --> ok; assumption for adonis is met for treatment (homogeneous dispersion)
 physeq.disper <- betadisper(dist, sample_vegan$sampletype)
-permutest(physeq.disper, pairwise = TRUE) #P = 0.001 (line 293); P = 0.04 (line 295) --> not ok; differences in composition within sampletypes (heterogeneous dispersion)
+permutest(physeq.disper, pairwise = TRUE) 
+#P = 0.001 --> not ok; differences in composition within sampletypes (heterogeneous dispersion)
+
 #Anderson MJ, Walsh DCI. PERMANOVA, ANOSIM, and the Mantel test in the face of heterogeneous dispersions: What null hypothesis are you testing? 
 #Ecological monographs [Internet] 2013; 83: 557. Available from: http://doi.org/10.1890/12-2010.1
 #PERMANOVA (which is basically adonis()) was found to be largely unaffected by heterogeneity in Anderson & Walsh's simulations but only for balanced designs.
 #For unbalanced designs PERMANOVA was too liberal if the smaller group had greater dispersion, and too conservative if the larger group had greater dispersion.
 
 #Get NDMS scores based on k that determines the stress level (Stress < 0.2 is ok)
-nmdsBray2 <- ordinate(physeq, method="NMDS",k=2, distance="bray") # Stress = 0.2062988 --> not ok (line 293); Stress = 0.1510036 --> ok (line 295)
+nmdsBray2 <- ordinate(physeq, method="NMDS",k=2, distance="bray") 
+# Stress = 0.2062988 --> not ok 
 goodness(nmdsBray2); stressplot(nmdsBray2) 
-nmdsBray3 <- ordinate(physeq, method="NMDS",k=3, distance="bray") # Stress = 0.1315289 --> ok (line 293); Stress = 0.1094315- -> ok, but not needed (line 295)
+nmdsBray3 <- ordinate(physeq, method="NMDS",k=3, distance="bray") 
+# Stress = 0.1315289 --> ok 
 goodness(nmdsBray3); stressplot(nmdsBray3) 
-#Extract scores manually and make your own plot (line 293)
+#Extract scores manually and make your own plot
 nmds_scores_test<-data.frame(scores(nmdsBray3))
-#Extract scores manually and make your own plot (line 295)
-nmds_scores_test<-data.frame(scores(nmdsBray2))
 #Add sample ID
 nmds_scores_test$Sample<-rownames(nmds_scores_test)
 #Strip out the sample data 
@@ -350,21 +368,17 @@ sample_vegan$Sample<-rownames(sample_vegan)
 #Add in metadata with treatments
 nmds_scores_treatments<-left_join(nmds_scores_test,sample_vegan,"Sample")
 #Calculate the average and the 95% confidence interval of NMDS1/NMDS2/NMDS3 and add values in a data frame
-#do.call(data.frame, ...) adds the values in a data frame with each calculation as a single column (instead of as attribute)
+#do.call(data.frame, ...) adds the values in a data frame with each calculation as a single column (instead of as attribute) 
 #cbind within aggregate lets you run the calculations on multiple variables
 #~sampletypetreatment within aggregate is the grouping variable
 #by using function(x) in the FUN argument of aggregate you can run multiple calculations (e.g. Avg and Conf)
-#line 293: k=3
 nmdsBray3 <- do.call(data.frame, aggregate(cbind(NMDS1,NMDS2,NMDS3) ~ sampletypetreatment, 
-                          data = nmds_scores_treatments, FUN= function(x) c(Avg=round(mean(x), digits=2), Conf=round(1.96*(sd(x)/sqrt(length(x))), digits=2))))
-#line 295: k=2
-nmdsBray2 <- do.call(data.frame, aggregate(cbind(NMDS1,NMDS2) ~ sampletypetreatment, 
-                          data = nmds_scores_treatments, FUN= function(x) c(Avg=round(mean(x), digits=2), Conf=round(1.96*(sd(x)/sqrt(length(x))), digits=2))))
+                          data = nmds_scores_treatments, 
+                          FUN= function(x) c(Avg=round(mean(x), digits=2), 
+                                             Conf=round(1.96*(sd(x)/sqrt(length(x))), digits=2))))
 
-#Export the NMDS plot below to an svg file if line 293 is chosen as physeq
-svg(filename = "nmdsBray3_allASV.svg", width = 8, height = 6)
-#Make an NMDS plot
-nmdsBray3_allASV <- ggplot(nmdsBray3, aes(x = NMDS1.Avg, y = NMDS2.Avg)) +
+#Make an NMDS plot of NMDS1 and NMDS2 - used in manuscript
+Plot_nmdsBray3 <- ggplot(nmdsBray3, aes(x = NMDS1.Avg, y = NMDS2.Avg)) +
   #Set the horizontal error bars based on the average and the 95% confidence interval
   geom_errorbarh(aes(xmin = (NMDS1.Avg-NMDS1.Conf), xmax = (NMDS1.Avg+NMDS1.Conf)), height = 0) +
   #Set the vertical error bars based on the average and the 95% confidence interval
@@ -376,7 +390,191 @@ nmdsBray3_allASV <- ggplot(nmdsBray3, aes(x = NMDS1.Avg, y = NMDS2.Avg)) +
   #Set the fill of the points manually
   scale_fill_manual(
     values = c("White", "White", "Black", "Black"),
-    labels = c("Control Gut", "Control Whole body", "Chlorpyrifos-selected Gut", "Chlorpyrifos-selected Whole body")) +
+    labels = c("Control Gut", "Control Whole body", 
+               "Chlorpyrifos-selected Gut", "Chlorpyrifos-selected Whole body")) +
+  #Fit the legend into 2 columns, indicate the legend shape and fill
+  guides(fill = guide_legend(override.aes = list(shape = c(22, 21, 22, 21)), ncol = 2,
+         shape = guide_legend(override.aes = list(fill = c("White", "White", "Black", "Black"))))) + 
+  #Set x-label to 'NMDS1'
+  xlab(expression("NMDS1")) +
+  #Set y-label to 'NMDS2'
+  ylab(expression("NMDS2")) +
+  #Set the classic theme (no gray panel background and no major/minor grids)
+  theme_classic() +
+  #Make further adjustments to the lay-out
+  theme(
+    #Set position the legend on the top 
+    legend.position = "top", 
+    #Remove the legend title
+    legend.title = element_blank(),
+    #Set font size and margins of the legend
+    legend.text = element_text(size = 15, margin = margin(2, 2, 10, 2,"pt")),
+    #Set font size, color and margins of the x-axis tick labels
+    axis.text.x = element_text(size = 15, margin = margin(10, 2, 2, 2,"pt"), colour = "black"),
+    #Set font size, color and margins of the y-axis tick labels
+    axis.text.y = element_text(size = 15, margin = margin(2, 10, 2, 2,"pt"), colour = "black"),
+    #Set font size and margins of the x axis label
+    axis.title.x = element_text(size = 20, margin = margin(30, 2, 2, 2, "pt")),
+    #Set font size and margins of the y axis label
+    axis.title.y = element_text(size = 20, margin = margin(2, 30, 2, 2, "pt")),
+    #Set plot margins
+    plot.margin = unit(c(0.5,0.5,0.5,0.5), "cm"))
+Plot_nmdsBray3
+
+#Make an NMDS plot of NMDS1 and NMDS3 - NOT used in manuscript
+Plot_nmdsBray3b <- ggplot(nmdsBray3, aes(x = NMDS1.Avg, y = NMDS3.Avg)) +
+  #Set the horizontal error bars based on the average and the 95% confidence interval
+  geom_errorbarh(aes(xmin = (NMDS1.Avg-NMDS1.Conf), xmax = (NMDS1.Avg+NMDS1.Conf)), height = 0) +
+  #Set the vertical error bars based on the average and the 95% confidence interval
+  geom_errorbar(aes(ymin = (NMDS3.Avg-NMDS3.Conf), ymax = (NMDS3.Avg+NMDS3.Conf)), width = 0) +
+  #Set the shape of the points manually
+  geom_point(aes(fill = sampletypetreatment), shape = c(22, 21, 22, 21), size = 5) +
+  #Set the same scale on the x-axis for both Unifrac plots
+  scale_x_continuous(limits=c(-0.9,0.9)) + 
+  #Set the fill of the points manually
+  scale_fill_manual(
+    values = c("White", "White", "Black", "Black"),
+    labels = c("Control Gut", "Control Whole body", 
+               "Chlorpyrifos-selected Gut", "Chlorpyrifos-selected Whole body")) +
+  #Fit the legend into 2 columns, indicate the legend shape and fill
+  guides(fill = guide_legend(override.aes = list(shape = c(22, 21, 22, 21)), ncol = 2,
+                             shape = guide_legend(override.aes = list(fill = c("White", "White", "Black", "Black"))))) + 
+  #Set x-label to 'NMDS1'
+  xlab(expression("NMDS1")) +
+  #Set y-label to 'NMDS3'
+  ylab(expression("NMDS3")) +
+  #Set the classic theme (no gray panel background and no major/minor grids)
+  theme_classic() +
+  #Make further adjustments to the lay-out
+  theme(
+    #Set position the legend on the top 
+    legend.position = "top", 
+    #Remove the legend title
+    legend.title = element_blank(),
+    #Set font size and margins of the legend
+    legend.text = element_text(size = 15, margin = margin(2, 2, 10, 2,"pt")),
+    #Set font size, color and margins of the x-axis tick labels
+    axis.text.x = element_text(size = 15, margin = margin(10, 2, 2, 2,"pt"), colour = "black"),
+    #Set font size, color and margins of the y-axis tick labels
+    axis.text.y = element_text(size = 15, margin = margin(2, 10, 2, 2,"pt"), colour = "black"),
+    #Set font size and margins of the x axis label
+    axis.title.x = element_text(size = 20, margin = margin(30, 2, 2, 2, "pt")),
+    #Set font size and margins of the y axis label
+    axis.title.y = element_text(size = 20, margin = margin(2, 30, 2, 2, "pt")),
+    #Set plot margins
+    plot.margin = unit(c(0.5,0.5,0.5,0.5), "cm"))
+Plot_nmdsBray3b
+
+#Make an NMDS plot of NMDS2 and NMDS3 - NOT used in manuscript
+Plot_nmdsBray3c <- ggplot(nmdsBray3, aes(x = NMDS2.Avg, y = NMDS3.Avg)) +
+  #Set the horizontal error bars based on the average and the 95% confidence interval
+  geom_errorbarh(aes(xmin = (NMDS2.Avg-NMDS2.Conf), xmax = (NMDS2.Avg+NMDS2.Conf)), height = 0) +
+  #Set the vertical error bars based on the average and the 95% confidence interval
+  geom_errorbar(aes(ymin = (NMDS3.Avg-NMDS3.Conf), ymax = (NMDS3.Avg+NMDS3.Conf)), width = 0) +
+  #Set the shape of the points manually
+  geom_point(aes(fill = sampletypetreatment), shape = c(22, 21, 22, 21), size = 5) +
+  #Set the same scale on the x-axis for both Unifrac plots
+  scale_x_continuous(limits=c(-0.9,0.9)) + 
+  #Set the fill of the points manually
+  scale_fill_manual(
+    values = c("White", "White", "Black", "Black"),
+    labels = c("Control Gut", "Control Whole body", 
+               "Chlorpyrifos-selected Gut", "Chlorpyrifos-selected Whole body")) +
+  #Fit the legend into 2 columns, indicate the legend shape and fill
+  guides(fill = guide_legend(override.aes = list(shape = c(22, 21, 22, 21)), ncol = 2,
+                             shape = guide_legend(override.aes = list(fill = c("White", "White", "Black", "Black"))))) + 
+  #Set x-label to 'NMDS2'
+  xlab(expression("NMDS2")) +
+  #Set y-label to 'NMDS3'
+  ylab(expression("NMDS3")) +
+  #Set the classic theme (no gray panel background and no major/minor grids)
+  theme_classic() +
+  #Make further adjustments to the lay-out
+  theme(
+    #Set position the legend on the top 
+    legend.position = "top", 
+    #Remove the legend title
+    legend.title = element_blank(),
+    #Set font size and margins of the legend
+    legend.text = element_text(size = 15, margin = margin(2, 2, 10, 2,"pt")),
+    #Set font size, color and margins of the x-axis tick labels
+    axis.text.x = element_text(size = 15, margin = margin(10, 2, 2, 2,"pt"), colour = "black"),
+    #Set font size, color and margins of the y-axis tick labels
+    axis.text.y = element_text(size = 15, margin = margin(2, 10, 2, 2,"pt"), colour = "black"),
+    #Set font size and margins of the x axis label
+    axis.title.x = element_text(size = 20, margin = margin(30, 2, 2, 2, "pt")),
+    #Set font size and margins of the y axis label
+    axis.title.y = element_text(size = 20, margin = margin(2, 30, 2, 2, "pt")),
+    #Set plot margins
+    plot.margin = unit(c(0.5,0.5,0.5,0.5), "cm"))
+Plot_nmdsBray3c
+
+
+####### BETA diversity - NMDS ORDINATION - Weighted Unifrac ####### 
+#https://mibwurrepo.github.io/Microbial-bioinformatics-introductory-course-Material-2018/beta-diversity-metrics.html
+
+physeq = physeqFilteredRF
+metadf <- data.frame(sample_data(physeq))
+unifrac.dist <- UniFrac(physeq, 
+                        weighted = TRUE, 
+                        normalized = TRUE,  
+                        parallel = FALSE, 
+                        fast = TRUE)
+#Set seed to get the same outcome of the permutations
+set.seed(10000)
+#PERMANOVA using adonis
+adonisUnifrac <- adonis(unifrac.dist ~ treatment * sampletype, data = metadf, permutations=10000)
+adonisUnifrac
+#Homogeneity assumption
+physeq.disper <- betadisper(unifrac.dist, metadf$treatment)
+permutest(physeq.disper, pairwise = TRUE) 
+#P = 0.28 --> ok; assumption for adonis is met for treatment (homogeneous dispersion)
+physeq.disper <- betadisper(unifrac.dist, metadf$sampletype)
+permutest(physeq.disper, pairwise = TRUE) 
+#P = 0.001 --> not ok; differences in composition within sampletypes (heterogeneous dispersion)
+
+#Anderson MJ, Walsh DCI. PERMANOVA, ANOSIM, and the Mantel test in the face of heterogeneous dispersions: What null hypothesis are you testing? 
+#Ecological monographs [Internet] 2013; 83: 557. Available from: http://doi.org/10.1890/12-2010.1
+#PERMANOVA (which is basically adonis()) was found to be largely unaffected by heterogeneity in Anderson & Walsh's simulations but only for balanced designs.
+#For unbalanced designs PERMANOVA was too liberal if the smaller group had greater dispersion, and too conservative if the larger group had greater dispersion.
+
+##Get NDMS scores (Stress < 0.20)
+nmdsUnifrac <- ordinate(physeq, method="NMDS", distance="unifrac", weighted=TRUE) # Stress = 0.05070283 --> ok
+goodness(nmdsUnifrac); stressplot(nmdsUnifrac) 
+#Extract scores manually and make your own plot
+nmdsUni_scores_test<-data.frame(scores(nmdsUnifrac))
+#Add sample ID
+nmdsUni_scores_test$Sample<-rownames(nmdsUni_scores_test)
+#Strip out the sample data 
+sample_vegan <- as(sample_data(physeq),"data.frame") 
+sample_vegan$Sample<-rownames(sample_vegan)
+#Add in metadata
+nmdsUni_scores_treatments<-left_join(nmdsUni_scores_test,sample_vegan,"Sample")
+#Calculate the average and the 95% confidence interval of NMDS1/NMDS2/NMDS3 and add values in a data frame
+#do.call(data.frame, ...) adds the values in a data frame with each calculation as a single column (instead of as attribute)
+#cbind within aggregate lets you run the calculations on multiple variables
+#~sampletypetreatment within aggregate is the grouping variable
+#by using function(x) in the FUN argument of aggregate you can run multiple calculations (e.g. Avg and Conf)
+nmdsUni <- do.call(data.frame, aggregate(cbind(NMDS1,NMDS2) ~ sampletypetreatment, 
+                      data = nmdsUni_scores_treatments, 
+                      FUN= function(x) c(Avg=round(mean(x), digits=2), 
+                                         Conf=round(1.96*(sd(x)/sqrt(length(x))), digits=2))))
+
+#Make an NMDS plot
+Plot_nmdsUnifrac <- ggplot(nmdsUni, aes(x = NMDS1.Avg, y = NMDS2.Avg)) +
+  #Set the horizontal error bars based on the average and the 95% confidence interval
+  geom_errorbarh(aes(xmin = (NMDS1.Avg-NMDS1.Conf), xmax = (NMDS1.Avg+NMDS1.Conf)), height = 0) +
+  #Set the vertical error bars based on the average and the 95% confidence interval
+  geom_errorbar(aes(ymin = (NMDS2.Avg-NMDS2.Conf), ymax = (NMDS2.Avg+NMDS2.Conf)), width = 0) +
+  #Set the shape of the points manually
+  geom_point(aes(fill = sampletypetreatment), shape = c(22, 21, 22, 21), size = 5) +
+  #Set the same scale on the x-axis for both Unifrac plots
+  scale_x_continuous(limits=c(-0.4,0.4)) +
+  #Set the fill of the points manually
+  scale_fill_manual(
+    values = c("White", "White", "Black", "Black"),
+    labels = c("Control Gut", "Control Whole body", "Chlorpyrifos-selected Gut", 
+               "Chlorpyrifos-selected Whole body")) +
   #Fit the legend into 2 columns, indicate the legend shape and fill
   guides(fill = guide_legend(override.aes = list(shape = c(22, 21, 22, 21)), ncol = 2,
          shape = guide_legend(override.aes = list(fill = c("White", "White", "Black", "Black"))))) + 
@@ -399,206 +597,12 @@ nmdsBray3_allASV <- ggplot(nmdsBray3, aes(x = NMDS1.Avg, y = NMDS2.Avg)) +
     #Set font size, color and margins of the y-axis tick labels
     axis.text.y = element_text(size = 15, margin = margin(2, 10, 2, 2,"pt"), colour = "black"),
     #Set font size and margins of the x axis label
-    axis.title.x = element_blank(),
+    axis.title.x = element_text(size = 20, margin = margin(30, 2, 2, 2, "pt")),
     #Set font size and margins of the y axis label
     axis.title.y = element_text(size = 20, margin = margin(2, 30, 2, 2, "pt")),
     #Set plot margins
     plot.margin = unit(c(0.5,0.5,0.5,0.5), "cm"))
-nmdsBray3_allASV #(line 293)
-#Stop saving code in svg file
-dev.off()
-
-#Export the NMDS plot below to an svg file if line 295 is chosen as physeq
-svg(filename = "nmdsBray2_ASVdegrading.svg", width = 8, height = 7) 
-#Make an NMDS plot
-nmdsBray2_ASVdegrading <- ggplot(nmdsBray2, aes(x = NMDS1.Avg, y = NMDS2.Avg)) +
-  #Set the horizontal error bars based on the average and the 95% confidence interval
-  geom_errorbarh(aes(xmin = (NMDS1.Avg-NMDS1.Conf), xmax = (NMDS1.Avg+NMDS1.Conf)), height = 0) +
-  #Set the vertical error bars based on the average and the 95% confidence interval
-  geom_errorbar(aes(ymin = (NMDS2.Avg-NMDS2.Conf), ymax = (NMDS2.Avg+NMDS2.Conf)), width = 0) +
-  #Set the shape of the points manually
-  geom_point(aes(fill = sampletypetreatment), shape = c(22, 21, 22, 21), size = 5) +
-  #Set the same scale on the x-axis for both Unifrac plots
-  scale_x_continuous(limits=c(-0.9,0.9)) + 
-  #Set the fill of the points manually
-  scale_fill_manual(
-    values = c("White", "White", "Black", "Black"),
-    labels = c("Control Gut", "Control Whole body", "Chlorpyrifos-selected Gut", "Chlorpyrifos-selected Whole body")) +
-  #Fit the legend into 2 columns, indicate the legend shape and fill
-  guides(fill = guide_legend(override.aes = list(shape = c(22, 21, 22, 21)), ncol = 2,
-                             shape = guide_legend(override.aes = list(fill = c("White", "White", "Black", "Black"))))) + 
-  #Set x-label to 'NMDS1'
-  xlab("NMDS1") +
-  #Set y-label to 'NMDS2'
-  ylab(expression("NMDS2")) +
-  #Set the classic theme (no gray panel background and no major/minor grids)
-  theme_classic() +
-  #Make further adjustments to the lay-out
-  theme(
-    #Set position the legend on the top 
-    legend.position = "top", 
-    #Remove the legend title
-    legend.title = element_blank(),
-    #Set font size and margins of the legend
-    legend.text = element_text(size = 15, margin = margin(2, 2, 10, 2,"pt")),
-    #Set font size, color and margins of the x-axis tick labels
-    axis.text.x = element_text(size = 15, margin = margin(10, 2, 2, 2,"pt"), colour = "black"),
-    #Set font size, color and margins of the y-axis tick labels
-    axis.text.y = element_text(size = 15, margin = margin(2, 10, 2, 2,"pt"), colour = "black"),
-    #Set font size and margins of the x axis label
-    axis.title.x = element_text(size = 20, margin = margin(25, 2, 2, 2, "pt")),
-    #Set font size and margins of the y axis label
-    axis.title.y = element_text(size = 20, margin = margin(2, 30, 2, 2, "pt")),
-    #Set plot margins
-    plot.margin = unit(c(0.5,0.5,0.5,0.5), "cm"))
-nmdsBray2_ASVdegrading #(line 295)
-#Stop saving code in svg file
-dev.off()
-
-####### BETA diversity - NMDS ORDINATION - Weighted Unifrac ####### 
-#https://mibwurrepo.github.io/Microbial-bioinformatics-introductory-course-Material-2018/beta-diversity-metrics.html
-
-#Run line below to run Beta diversity analysis with all ASV (do not run line 405)
-physeq = physeqFilteredRF
-#Run line below to run Beta diversity analysis with ASV of known organophosphate degrading bacteria (do not run line 403)
-physeq = physeqOrganophosphateDegradingGenera 
-
-
-metadf <- data.frame(sample_data(physeq))
-unifrac.dist <- UniFrac(physeq, 
-                        weighted = TRUE, 
-                        normalized = TRUE,  
-                        parallel = FALSE, 
-                        fast = TRUE)
-#Set seed to get the same outcomst of the permutations
-set.seed(10000)
-#PERMANOVA using adonis
-adonisUnifrac <- adonis(unifrac.dist ~ treatment * sampletype, data = metadf, permutations=10000)
-adonisUnifrac
-#Homogeneity assumption
-physeq.disper <- betadisper(unifrac.dist, metadf$treatment)
-permutest(physeq.disper, pairwise = TRUE) #P = 0.28 (line 403); P = 0.27 (line 405) --> ok; assumption for adonis is met for treatment (homogeneous dispersion)
-physeq.disper <- betadisper(unifrac.dist, metadf$sampletype)
-permutest(physeq.disper, pairwise = TRUE) #P = 0.001 (line 403)--> not ok; P = 0.096 (line 405) --> ok; differences in composition within sampletypes (heterogeneous dispersion)
-#Anderson MJ, Walsh DCI. PERMANOVA, ANOSIM, and the Mantel test in the face of heterogeneous dispersions: What null hypothesis are you testing? 
-#Ecological monographs [Internet] 2013; 83: 557. Available from: http://doi.org/10.1890/12-2010.1
-#PERMANOVA (which is basically adonis()) was found to be largely unaffected by heterogeneity in Anderson & Walsh's simulations but only for balanced designs.
-#For unbalanced designs PERMANOVA was too liberal if the smaller group had greater dispersion, and too conservative if the larger group had greater dispersion.
-
-##Get NDMS scores (Stress < 0.20)
-nmdsUnifrac <- ordinate(physeq, method="NMDS", distance="unifrac", weighted=TRUE) # Stress = 0.05070283 (line 403); Stress = 0.0294017 (line 405)
-goodness(nmdsUnifrac); stressplot(nmdsUnifrac) 
-#Extract scores manually and make your own plot
-nmdsUni_scores_test<-data.frame(scores(nmdsUnifrac))
-#Add sample ID
-nmdsUni_scores_test$Sample<-rownames(nmdsUni_scores_test)
-#Strip out the sample data 
-sample_vegan <- as(sample_data(physeq),"data.frame") 
-sample_vegan$Sample<-rownames(sample_vegan)
-#Add in metadata
-nmdsUni_scores_treatments<-left_join(nmdsUni_scores_test,sample_vegan,"Sample")
-#Calculate the average and the 95% confidence interval of NMDS1/NMDS2/NMDS3 and add values in a data frame
-#do.call(data.frame, ...) adds the values in a data frame with each calculation as a single column (instead of as attribute)
-#cbind within aggregate lets you run the calculations on multiple variables
-#~sampletypetreatment within aggregate is the grouping variable
-#by using function(x) in the FUN argument of aggregate you can run multiple calculations (e.g. Avg and Conf)
-nmdsUni <- do.call(data.frame, aggregate(cbind(NMDS1,NMDS2) ~ sampletypetreatment, 
-                      data = nmdsUni_scores_treatments, FUN= function(x) c(Avg=round(mean(x), digits=2), Conf=round(1.96*(sd(x)/sqrt(length(x))), digits=2))))
-
-#Export the NMDS plot below to an svg file with line 403
-svg(filename = "nmdsUnifrac_allASV.svg", width = 8, height = 7)
-#Make an NMDS plot
-nmdsUnifrac_allASV <- ggplot(nmdsUni, aes(x = NMDS1.Avg, y = NMDS2.Avg)) +
-  #Set the horizontal error bars based on the average and the 95% confidence interval
-  geom_errorbarh(aes(xmin = (NMDS1.Avg-NMDS1.Conf), xmax = (NMDS1.Avg+NMDS1.Conf)), height = 0) +
-  #Set the vertical error bars based on the average and the 95% confidence interval
-  geom_errorbar(aes(ymin = (NMDS2.Avg-NMDS2.Conf), ymax = (NMDS2.Avg+NMDS2.Conf)), width = 0) +
-  #Set the shape of the points manually
-  geom_point(aes(fill = sampletypetreatment), shape = c(22, 21, 22, 21), size = 5) +
-  #Set the same scale on the x-axis for both Unifrac plots
-  scale_x_continuous(limits=c(-0.4,0.4)) +
-  #Set the fill of the points manually
-  scale_fill_manual(
-    values = c("White", "White", "Black", "Black"),
-    labels = c("Control Gut", "Control Whole body", "Chlorpyrifos-selected Gut", "Chlorpyrifos-selected Whole body")) +
-  #Fit the legend into 2 columns, indicate the legend shape and fill
-  guides(fill = guide_legend(override.aes = list(shape = c(22, 21, 22, 21)), ncol = 2,
-                             shape = guide_legend(override.aes = list(fill = c("White", "White", "Black", "Black"))))) + 
-  #Set x-label to 'NMDS1'
-  xlab("NMDS1") +
-  #Set y-label to 'NMDS2'
-  ylab(expression("NMDS2")) +
-  #Set the classic theme (no gray panel background and no major/minor grids)
-  theme_classic() +
-  #Make further adjustments to the lay-out
-  theme(
-    #Set position the legend on the top 
-    legend.position = "top", 
-    #Remove the legend title
-    legend.title = element_blank(),
-    #Set font size and margins of the legend
-    legend.text = element_text(size = 15, margin = margin(2, 2, 10, 2,"pt")),
-    #Set font size, color and margins of the x-axis tick labels
-    axis.text.x = element_text(size = 15, margin = margin(10, 2, 2, 2,"pt"), colour = "black"),
-    #Set font size, color and margins of the y-axis tick labels
-    axis.text.y = element_text(size = 15, margin = margin(2, 10, 2, 2,"pt"), colour = "black"),
-    #Set font size and margins of the x axis label
-    axis.title.x = element_blank(),
-    #Set font size and margins of the y axis label
-    axis.title.y = element_blank(),
-    #Set plot margins
-    plot.margin = unit(c(0.5,0.5,0.5,0.5), "cm"))
-nmdsUnifrac_allASV #(line 403)
-#Stop saving code in svg file
-dev.off()
-
-#Export the NMDS plot below to an svg file with line 405
-svg(filename = "nmdsUnifrac_ASVdegrading.svg", width = 8, height = 7)
-#Make an NMDS plot
-nmdsUnifrac_ASVdegrading <- ggplot(nmdsUni, aes(x = NMDS1.Avg, y = NMDS2.Avg)) +
-  #Set the horizontal error bars based on the average and the 95% confidence interval
-  geom_errorbarh(aes(xmin = (NMDS1.Avg-NMDS1.Conf), xmax = (NMDS1.Avg+NMDS1.Conf)), height = 0) +
-  #Set the vertical error bars based on the average and the 95% confidence interval
-  geom_errorbar(aes(ymin = (NMDS2.Avg-NMDS2.Conf), ymax = (NMDS2.Avg+NMDS2.Conf)), width = 0) +
-  #Set the shape of the points manually
-  geom_point(aes(fill = sampletypetreatment), shape = c(22, 21, 22, 21), size = 5) +
-  #Set the same scale on the x-axis for both Unifrac plots
-  scale_x_continuous(limits=c(-0.4,0.4)) + 
-  #Set the fill of the points manually
-  scale_fill_manual(
-    values = c("White", "White", "Black", "Black"),
-    labels = c("Control Gut", "Control Whole body", "Chlorpyrifos-selected Gut", "Chlorpyrifos-selected Whole body")) +
-  #Fit the legend into 2 columns, indicate the legend shape and fill
-  guides(fill = guide_legend(override.aes = list(shape = c(22, 21, 22, 21)), ncol = 2,
-                             shape = guide_legend(override.aes = list(fill = c("White", "White", "Black", "Black"))))) + 
-  #Set x-label to 'NMDS1'
-  xlab("NMDS1") +
-  #Set y-label to 'NMDS2'
-  ylab(expression("NMDS2")) +
-  #Set the classic theme (no gray panel background and no major/minor grids)
-  theme_classic() +
-  #Make further adjustments to the lay-out
-  theme(
-    #Set position the legend on the top 
-    legend.position = "top", 
-    #Remove the legend title
-    legend.title = element_blank(),
-    #Set font size and margins of the legend
-    legend.text = element_text(size = 15, margin = margin(2, 2, 10, 2,"pt")),
-    #Set font size, color and margins of the x-axis tick labels
-    axis.text.x = element_text(size = 15, margin = margin(10, 2, 2, 2,"pt"), colour = "black"),
-    #Set font size, color and margins of the y-axis tick labels
-    axis.text.y = element_text(size = 15, margin = margin(2, 10, 2, 2,"pt"), colour = "black"),
-    #Set font size and margins of the x axis label
-    axis.title.x = element_text(size = 20, margin = margin(25, 2, 2, 2, "pt")),
-    #Set font size and margins of the y axis label
-    axis.title.y = element_blank(),
-    #Set plot margins
-    plot.margin = unit(c(0.5,0.5,0.5,0.5), "cm"))
-nmdsUnifrac_ASVdegrading #(line 405)
-#Stop saving code in svg file
-dev.off()
-
+Plot_nmdsUnifrac
 
 
 ####### ALPHA diversity - Shannon index and Faith's phylogenetic index ####### 
@@ -623,11 +627,11 @@ alphaRF<-left_join(FaithPD,alphaRF,"sampleID")
 alphaRF
 
 #Statistics Shannon index
-set_sum_contrasts() #interaction, type=3 in Anova
+set_sum_contrasts() 
 lmShannon<-lmer(Shannon ~ treatment * sampletype + (1|treatment:population), data=alphaRF)
 Anova(lmShannon, type=3)
 ranova(lmShannon)
-r.squaredGLMM(lmShannon) ###package?
+# r.squaredGLMM(lmShannon)
 #Marginal r2 (R2m) is our % variance explained just due to the fixed effects. 
 #Conditional r2 (R2c) is variance explained by both fixed and random effects. 
 shapiro.test(residuals(lmShannon))
@@ -638,15 +642,16 @@ leveneTest(Shannon~ treatment * sampletype, data = alphaRF)
 aggregate(Shannon~ treatment * sampletype, data = alphaRF, var) 
 
 SEplotShannon <- summary(emmeans(lmShannon, ~ treatment * sampletype, type = "response"))
-svg(filename = "Alpha_Shannon.svg", width = 8, height = 7)
 #Plot shannon diversity
-Shannon_plot <- ggplot(SEplotShannon, aes(x = treatment, y = emmean, group = sampletype)) +
+Plot_Shannon <- ggplot(SEplotShannon, aes(x = treatment, y = emmean, group = sampletype)) +
   #Set white/black instead of red/green as color
   scale_fill_manual(values = c("white", "black")) +
   #Set the error bars based on the average and standard error
-  geom_errorbar(aes(ymin = emmean-SE, ymax = emmean+SE), width = 0, position = position_dodge(.5), color="black") +
+  geom_errorbar(aes(ymin = emmean-SE, ymax = emmean+SE), width = 0, 
+                position = position_dodge(.5), color="black") +
   #Set the shape of the points manually
-  geom_point(aes(fill = treatment), shape = c(22, 22, 21, 21), size = 5, position = position_dodge(.5), color="black") +
+  geom_point(aes(fill = treatment), shape = c(22, 22, 21, 21), size = 5, 
+             position = position_dodge(.5), color="black") +
   #Set x-label to 'Selection treatment'
   xlab("Selection treatment") +
   #Set y-label to 'Shannon index'
@@ -658,7 +663,7 @@ Shannon_plot <- ggplot(SEplotShannon, aes(x = treatment, y = emmean, group = sam
   #Make further adjustments to the lay-out
   theme(
     #Set the legend position
-    legend.position = "top",
+    legend.position = "none",
     #Remove the legend title
     legend.title = element_blank(),
     # (labels = c("control"="Control", "pesticide"="Chlorpyrifos-selected")),
@@ -672,16 +677,15 @@ Shannon_plot <- ggplot(SEplotShannon, aes(x = treatment, y = emmean, group = sam
     axis.title.y = element_text(size = 20, margin = margin(2, 30, 2, 2, "pt")),
     #Set plot margins
     plot.margin = unit(c(0.5,0.5,0.5,0.5), "cm"))
-Shannon_plot
-dev.off()
+Plot_Shannon
 
 
 #Statistics Faith's phylogenetic index
-set_sum_contrasts() #interaction, type=3 in Anova
+set_sum_contrasts() 
 lmFaithsPD<-lmer(PD ~ treatment * sampletype + (1|treatment:population), data=alphaRF)
 Anova(lmFaithsPD, type=3)
 ranova(lmFaithsPD)
-r.squaredGLMM(lmFaithsPD)
+# r.squaredGLMM(lmFaithsPD)
 #Marginal r2 (R2m) is our % variance explained just due to the fixed effects. 
 #Conditional r2 (R2c) is variance explained by both fixed and random effects. 
 shapiro.test(residuals(lmFaithsPD))
@@ -692,14 +696,15 @@ leveneTest(PD~ treatment * sampletype, data = alphaRF)
 aggregate(PD~ treatment * sampletype, data = alphaRF, var) 
 
 SEplotPD <- summary(emmeans(lmFaithsPD, ~ treatment * sampletype, type = "response"))
-svg(filename = "Alpha_PD.svg", width = 8, height = 7)
-PD_plot <- ggplot(SEplotPD, aes(x = treatment, y = emmean, group = sampletype, col=sampletype, shape=sampletype)) +
+Plot_PD <- ggplot(SEplotPD, aes(x = treatment, y = emmean, group = sampletype, col=sampletype, shape=sampletype)) +
   #Set white/black instead of red/green as color
   scale_fill_manual(values = c("white", "black")) +
   #Set the error bars based on the average and standard error
-  geom_errorbar(aes(ymin = emmean-SE, ymax = emmean+SE), width = 0, position = position_dodge(.5), color="black") +
+  geom_errorbar(aes(ymin = emmean-SE, ymax = emmean+SE), width = 0, 
+                position = position_dodge(.5), color="black") +
   #Set the shape of the points manually
-  geom_point(aes(fill = treatment), shape = c(22, 22, 21, 21), size = 5, position = position_dodge(.5), color="black") +
+  geom_point(aes(fill = treatment), shape = c(22, 22, 21, 21), size = 5, 
+             position = position_dodge(.5), color="black") +
   #Set x-label to 'Selection treatment'
   xlab("Selection treatment") +
   #Set y-label to 'Faith's phylogenetic index'
@@ -711,7 +716,7 @@ PD_plot <- ggplot(SEplotPD, aes(x = treatment, y = emmean, group = sampletype, c
   #Make further adjustments to the lay-out
   theme(
     #Set the legend position
-    legend.position = "top",
+    legend.position = "none",
     #Remove the legend title
     legend.title=element_blank(),
     #Set font size, color and margins of the x-axis tick labels
@@ -724,16 +729,14 @@ PD_plot <- ggplot(SEplotPD, aes(x = treatment, y = emmean, group = sampletype, c
     axis.title.y = element_text(size = 20, margin = margin(2, 30, 2, 2, "pt")),
     #Set plot margins
     plot.margin = unit(c(0.5,0.5,0.5,0.5), "cm"))
-PD_plot
-dev.off()
+Plot_PD
 
 
 #Combine the four ggplots in one figure
 #http://www.sthda.com/english/articles/32-r-graphics-essentials/126-combine-multiple-ggplots-in-one-graph/
 
-svg(filename = "Figure2.svg", width = 16, height = 21)
-Figure2 <- ggarrange(Shannon_plot, PD_plot, nmdsBray3_allASV, nmdsUnifrac_allASV, nmdsBray2_ASVdegrading, nmdsUnifrac_ASVdegrading, legend = "none", ncol = 2, nrow = 3, labels = c("A","B","C","D","E","F"))
+svg(filename = "Figure2_Manuscript.svg", width = 16, height = 21)
+Figure2 <- ggarrange(Plot_Shannon, Plot_PD, Plot_nmdsBray3, Plot_nmdsUnifrac, 
+                     legend = "none", ncol = 2, nrow = 3, labels = c("A","B","C","D"))
 Figure2
 dev.off()
-
-###### End of Script ######
