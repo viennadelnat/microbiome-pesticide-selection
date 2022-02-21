@@ -1,4 +1,4 @@
-# Microbiome-Pesticide-Selection-Experiment
+# microbiome-pesticide-selection
 
 R and command line code for ‘Evolution of pesticide tolerance and associated changes in the microbiome in Daphnia magna’
 
